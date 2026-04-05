@@ -113,7 +113,10 @@ bool IHS_SessionChannelControlSend(IHS_SessionChannel *channel, EStreamControlMe
     } else {
         IHS_BufferAppendMessage(&frame.body, message);
     }
-    ret = IHS_SessionChannelQueueFrame(channel, &frame, true);
+    // HID input reports are time-sensitive: retransmitting stale controller
+    // state causes input freezes. All other control messages keep retransmit.
+    bool retransmit = (type != k_EStreamControlRemoteHID);
+    ret = IHS_SessionChannelQueueFrame(channel, &frame, retransmit);
     IHS_SessionFrameClear(&frame, true);
     return ret;
 }
