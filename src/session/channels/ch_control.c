@@ -37,6 +37,7 @@
 #include "protobuf/pb_utils.h"
 
 #include "ihs_buffer_ext.h"
+#include "ihs_timer.h"
 
 static bool IsMessageEncrypted(EStreamControlMessage type);
 
@@ -434,6 +435,15 @@ static void OnServerHandshake(IHS_SessionChannel *channel, const CServerHandshak
     IHS_SessionChannelControlRequestAuthentication(channel);
 }
 
+// Diagnostic counters for `docs/controller-stickiness.md` investigation. Deliberately
+// process-lifetime statics (not part of IHS_SessionState) so the numbers survive session
+// teardown and can be read from the Support screen after the user exits a stream where a
+// freeze happened. Not thread-safe beyond plain-word read/write atomicity, which is
+// sufficient for a diagnostic display read occasionally from the UI thread.
+static int g_inputDisableCount = 0;
+static uint32_t g_lastInputDisableDurationMs = 0;
+static uint64_t g_inputDisabledSinceMs = 0;
+
 static void OnSetClientConfig(IHS_SessionChannel *channel, const CSetStreamingClientConfig *message) {
     const CStreamingClientConfig *config = message->config;
     if (config == NULL) {
@@ -445,7 +455,20 @@ static void OnSetClientConfig(IHS_SessionChannel *channel, const CSetStreamingCl
     // Each flag is only updated if the server actually included it; absent fields keep the
     // current value (which started at true at session creation).
     if (config->has_enable_input_streaming) {
-        session->state.streamingInput = config->enable_input_streaming;
+        bool wasEnabled = session->state.streamingInput;
+        bool nowEnabled = config->enable_input_streaming;
+        session->state.streamingInput = nowEnabled;
+        if (wasEnabled && !nowEnabled) {
+            g_inputDisabledSinceMs = IHS_TimerNow();
+            g_inputDisableCount++;
+            IHS_SessionLog(session, IHS_LogLevelWarn, "Control",
+                           "Input streaming DISABLED by server (occurrence #%d)", g_inputDisableCount);
+        } else if (!wasEnabled && nowEnabled && g_inputDisabledSinceMs != 0) {
+            g_lastInputDisableDurationMs = (uint32_t) (IHS_TimerNow() - g_inputDisabledSinceMs);
+            IHS_SessionLog(session, IHS_LogLevelWarn, "Control",
+                           "Input streaming RE-ENABLED by server after %ums", g_lastInputDisableDurationMs);
+            g_inputDisabledSinceMs = 0;
+        }
     }
     if (config->has_enable_audio_streaming) {
         session->state.streamingAudio = config->enable_audio_streaming;
@@ -461,6 +484,19 @@ static void OnSetClientConfig(IHS_SessionChannel *channel, const CSetStreamingCl
 
 bool IHS_SessionInputEnabled(IHS_Session *session) {
     return session->state.streamingInput;
+}
+
+void IHS_SessionGetInputStreamingDiagnostics(uint32_t *disableCount, uint32_t *lastDisableDurationMs,
+                                             bool *currentlyDisabled) {
+    if (disableCount != NULL) {
+        *disableCount = (uint32_t) g_inputDisableCount;
+    }
+    if (lastDisableDurationMs != NULL) {
+        *lastDisableDurationMs = g_lastInputDisableDurationMs;
+    }
+    if (currentlyDisabled != NULL) {
+        *currentlyDisabled = g_inputDisabledSinceMs != 0;
+    }
 }
 
 static void OnSetSpectatorMode(IHS_SessionChannel *channel, const CSetSpectatorModeMsg *message) {

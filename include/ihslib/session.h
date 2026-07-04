@@ -196,3 +196,14 @@ void IHS_SessionStatsSetFullReporting(IHS_Session *session, bool enabled);
 void IHS_SessionSetLogFunction(IHS_Session *session, IHS_LogFunction *logFunction);
 
 const IHS_SessionInfo *IHS_SessionGetInfo(const IHS_Session *session);
+
+/**
+ * Diagnostic counters for the "controller input stickiness" investigation
+ * (see docs/controller-stickiness.md). Tracks how many times the server has disabled
+ * input streaming via SetStreamingClientConfig, how long the last disable lasted, and
+ * whether input streaming is disabled right now. These are process-lifetime counters,
+ * not tied to a specific session instance, so they survive session teardown and can be
+ * read from a UI screen shown after disconnecting.
+ */
+void IHS_SessionGetInputStreamingDiagnostics(uint32_t *disableCount, uint32_t *lastDisableDurationMs,
+                                             bool *currentlyDisabled);
