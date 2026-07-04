@@ -32,7 +32,7 @@
 #include "protobuf/pb_utils.h"
 #include "session/session_pri.h"
 
-#define HID_POLL_INTERVAL_MS 8u
+#define HID_POLL_INTERVAL_MS 33u
 
 static uint64_t HIDPollTick(int runCount, void *context);
 

@@ -56,6 +56,8 @@ IHS_UDPSocket *IHS_UDPSocketOpen(bool broadcast) {
         uint32_t opt = 1;
         setsockopt(s->fd, SOL_SOCKET, SO_BROADCAST, (char *) &opt, sizeof(opt));
     }
+    struct timeval sendTimeout = { .tv_sec = 0, .tv_usec = 10000 };
+    setsockopt(s->fd, SOL_SOCKET, SO_SNDTIMEO, &sendTimeout, sizeof(sendTimeout));
     return s;
 }
 
