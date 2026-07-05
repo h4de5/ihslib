@@ -191,6 +191,12 @@ void IHS_SessionHIDAddProvider(IHS_Session *session, IHS_HIDProvider *provider) 
     IHS_BaseUnlock(&session->base);
 }
 
+void IHS_SessionHIDRemoveProvider(IHS_Session *session, IHS_HIDProvider *provider) {
+    IHS_BaseLock(&session->base);
+    IHS_HIDManagerRemoveProvider(session->hidManager, provider);
+    IHS_BaseUnlock(&session->base);
+}
+
 const IHS_SessionInfo *IHS_SessionGetInfo(const IHS_Session *session) {
     return &session->info;
 }
