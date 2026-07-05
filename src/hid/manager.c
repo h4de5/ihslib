@@ -42,6 +42,7 @@ IHS_HIDManager *IHS_HIDManagerCreate() {
     IHS_ArrayListInit(&manager->devices, sizeof(IHS_HIDManagedDevice *));
     IHS_ArrayListInit(&manager->inputReports, sizeof(IHS_HIDDeviceReportMessage *));
     manager->devicesLock = IHS_MutexCreate();
+    manager->sendLock = IHS_MutexCreate();
     return manager;
 }
 
@@ -71,6 +72,7 @@ void IHS_HIDManagerDestroy(IHS_HIDManager *manager) {
     IHS_ArrayListDeinit(&manager->devices);
     IHS_ArrayListDeinit(&manager->providers);
     IHS_ArrayListDeinit(&manager->inputReports);
+    IHS_MutexDestroy(manager->sendLock);
     IHS_MutexDestroy(manager->devicesLock);
     free(manager);
 }

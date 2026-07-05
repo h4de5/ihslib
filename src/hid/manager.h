@@ -48,6 +48,7 @@ struct IHS_HIDManager {
     IHS_Mutex *devicesLock;
     IHS_ArrayList providers;
     IHS_ArrayList inputReports;
+    IHS_Mutex *sendLock;
     uint32_t lastDeviceId;
     /**
      * 125 Hz poll task that drains every device whose class implements `poll`, then calls

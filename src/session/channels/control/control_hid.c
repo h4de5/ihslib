@@ -212,6 +212,8 @@ bool IHS_SessionHIDSendReport(IHS_Session *session) {
     // The polling task still calls device->poll() so device state stays current; only
     // the wire send is suppressed (matches Steam's BStreamingInput gating behavior).
     if (!IHS_SessionInputEnabled(session)) return false;
+    IHS_HIDManager *manager = session->hidManager;
+    IHS_MutexLock(manager->sendLock);
     CHIDMessageFromRemote outMessage = CHIDMESSAGE_FROM_REMOTE__INIT;
     outMessage.command_case = CHIDMESSAGE_FROM_REMOTE__COMMAND_REPORTS;
     CHIDMessageFromRemote__DeviceInputReports reports = CHIDMESSAGE_FROM_REMOTE__DEVICE_INPUT_REPORTS__INIT;
@@ -266,6 +268,7 @@ bool IHS_SessionHIDSendReport(IHS_Session *session) {
     free(deviceSnapshot);
 
     bool ret = false;
+    // If packed is NULL there's nothing to send, but sendLock must still be released.
     if (packed != NULL) {
         // Wrap the pre-packed CHIDMessageFromRemote in a CRemoteHIDMsg and ship it. The
         // crypto and send-queue work happens with zero device locks held; SDL events on
@@ -279,6 +282,7 @@ bool IHS_SessionHIDSendReport(IHS_Session *session) {
                                             (const ProtobufCMessage *) &wrapped, IHS_PACKET_ID_NEXT);
         free(packed);
     }
+    IHS_MutexUnlock(manager->sendLock);
     return ret;
 }
 
